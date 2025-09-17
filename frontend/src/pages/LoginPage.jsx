@@ -110,7 +110,7 @@ export default function LoginPage({ onLogin }) {
     setSubmitting(true);
     setError('');
     try {
-      const { data } = await api.post('/token/', { username, password });
+      const { data } = await api.post('/auth/token/', { username, password });
       const accessToken = data?.access;
       if (!accessToken) throw new Error('Missing access token');
 

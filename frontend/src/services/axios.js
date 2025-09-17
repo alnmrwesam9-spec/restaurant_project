@@ -9,8 +9,12 @@
 import axios from 'axios';
 
 // أصل خادم الـAPI (من متغير البيئة أو الافتراضي) مع إزالة أي سلاشات زائدة
-export const API_ORIGIN =
-  (process.env.REACT_APP_API_ORIGIN || 'http://localhost:8000').replace(/\/+$/, '');
+const RAW_ORIGIN =
+  process.env.REACT_APP_API_URL ||
+  process.env.REACT_APP_API_ORIGIN ||
+  'http://localhost:8000';
+
+export const API_ORIGIN = RAW_ORIGIN.replace(/\/+$/, '');
 
 // الأساس القياسي للـ API (ينتهي بـ /api)
 export const API_BASE = `${API_ORIGIN}/api`;
@@ -18,7 +22,7 @@ export const API_BASE = `${API_ORIGIN}/api`;
 // إنشاء نسخة Axios خاصة بنا مع baseURL والـ timeout
 const instance = axios.create({
   baseURL: API_BASE,     // كل المسارات النسبية تُركّب على هذا الأساس
-  timeout: 45000,        // 🔵 مهلة افتراضية 90 ثانية بدل 15
+  timeout: 90000,        // مهلة افتراضية 90 ثانية
   headers: {
     'Content-Type': 'application/json',
   },
@@ -81,7 +85,10 @@ instance.interceptors.request.use((config) => {
   try {
     const full = new URL(config.url || '', config.baseURL || API_BASE);
     const path = full.pathname || '';
-    if (path.endsWith('/dishes/batch-generate-allergen-codes/') || path.includes('/dishes/batch-generate-allergen-codes')) {
+    if (
+      path.endsWith('/dishes/batch-generate-allergen-codes/') ||
+      path.includes('/dishes/batch-generate-allergen-codes')
+    ) {
       const LONG_TIMEOUT = 120000; // 120 ثانية
       config.timeout = Math.max(config.timeout || 0, LONG_TIMEOUT);
     }

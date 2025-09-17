@@ -1,9 +1,9 @@
 """
 Django settings for backend project.
 
-Production-ready (trial) configuration:
+Production-ready configuration:
 - Reads secrets & endpoints from environment variables
-- Supports managed PostgreSQL via DATABASE_URL (Neon/Supabase)
+- Managed PostgreSQL via DATABASE_URL (Neon/Supabase) + SSL
 - Serves static files via WhiteNoise
 - Proper middleware order for Security, WhiteNoise, CORS
 """
@@ -24,14 +24,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ------------------------------------------------------------------
 # Core flags & secrets (from env)
 # ------------------------------------------------------------------
-DEBUG = os.getenv("DEBUG", "0") == "1"
+DEBUG = os.getenv("DEBUG", "0") == "1"  # set DEBUG=1 locally if needed
 # IMPORTANT: set SECRET_KEY in environment on Render; fallback is only for local dev
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-key-change-me")
 
 # Hosts & cross-origin/CSRF trust come from env to match your real domains
-ALLOWED_HOSTS = [h for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
-CORS_ALLOWED_ORIGINS = [o for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
-CSRF_TRUSTED_ORIGINS = [o for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
+
+# You can pass comma-separated origins via ENV, plus we allow any *.vercel.app by regex
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"]
+
+# CSRF_TRUSTED_ORIGINS must be full origins (scheme+host). Wildcards are allowed like https://*.vercel.app
+_csrf_from_env = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(_csrf_from_env + ["https://*.vercel.app"]))
 
 # ------------------------------------------------------------------
 # Applications
@@ -59,7 +65,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",   # serve static files efficiently
-    "corsheaders.middleware.CorsMiddleware",        # before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",        # must be before CommonMiddleware
     "django.middleware.common.CommonMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -159,8 +165,16 @@ REST_FRAMEWORK = {
     ),
 }
 
+# CORS behaviour (allow credentials only if you actually use cookies/sessions from JS)
+CORS_ALLOW_CREDENTIALS = True
+
 # ------------------------------------------------------------------
 # Project-specific env vars
 # ------------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GLOBAL_LEXICON_OWNER_ID = int(os.getenv("GLOBAL_LEXICON_OWNER_ID", "1"))
+
+# ------------------------------------------------------------------
+# Django 3.2+ default pk type
+# ------------------------------------------------------------------
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

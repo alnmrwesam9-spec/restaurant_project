@@ -1,20 +1,23 @@
 // src/services/axios.js
 // -----------------------------------------------------------------------------
 // عميل Axios موحّد للتعامل مع الـ API.
+// - يقرأ أصل الـ API من متغيّر بيئة واحد (مع بدائل متوافقة).
 // - يضمن أن الطلبات العامة (/public/* أو /api/public/*) لا تُرسل معها Authorization.
 // - يضيف Authorization لباقي الطلبات إن وُجد التوكن.
-// - يرفع مهلة الطلبات (خاصة استدعاء توليد أكواد الحساسية).
+// - مهلة أطول لاستدعاء "توليد أكواد الحساسية".
 // -----------------------------------------------------------------------------
 
 import axios from 'axios';
 
-// أصل خادم الـAPI (من متغير البيئة أو الافتراضي) مع إزالة أي سلاشات زائدة
+// ✅ أصل الـ API من البيئة (الأولوية منطقية ومتوافقة مع إعداداتك الحالية)
 const RAW_ORIGIN =
-  process.env.REACT_APP_API_URL ||
-  process.env.REACT_APP_API_ORIGIN ||
+  process.env.REACT_APP_API_BASE ||   // الموصى به على Vercel
+  process.env.REACT_APP_API_URL ||    // بديل قديم
+  process.env.REACT_APP_API_ORIGIN || // بديل أقدم
   'http://localhost:8000';
 
-export const API_ORIGIN = RAW_ORIGIN.replace(/\/+$/, '');
+// إزالة السلاشات الزائدة
+export const API_ORIGIN = String(RAW_ORIGIN).replace(/\/+$/, '');
 
 // الأساس القياسي للـ API (ينتهي بـ /api)
 export const API_BASE = `${API_ORIGIN}/api`;
@@ -22,10 +25,12 @@ export const API_BASE = `${API_ORIGIN}/api`;
 // إنشاء نسخة Axios خاصة بنا مع baseURL والـ timeout
 const instance = axios.create({
   baseURL: API_BASE,     // كل المسارات النسبية تُركّب على هذا الأساس
-  timeout: 90000,        // مهلة افتراضية 90 ثانية
+  timeout: 90_000,       // مهلة افتراضية 90 ثانية
   headers: {
     'Content-Type': 'application/json',
   },
+  // لو كنت تستخدم كوكيز/جلسات عبر دومينات مختلفة:
+  // withCredentials: true,
 });
 
 // قراءة التوكن من التخزين (نفضّل sessionStorage)
@@ -51,7 +56,10 @@ function isPublicRequest(config) {
     const p = full.pathname || '';
     return p.startsWith('/api/public/') || p.startsWith('/public/');
   } catch {
-    return typeof raw === 'string' && (raw.startsWith('/public/') || raw.startsWith('/api/public/'));
+    return (
+      typeof raw === 'string' &&
+      (raw.startsWith('/public/') || raw.startsWith('/api/public/'))
+    );
   }
 }
 
@@ -89,7 +97,7 @@ instance.interceptors.request.use((config) => {
       path.endsWith('/dishes/batch-generate-allergen-codes/') ||
       path.includes('/dishes/batch-generate-allergen-codes')
     ) {
-      const LONG_TIMEOUT = 120000; // 120 ثانية
+      const LONG_TIMEOUT = 120_000; // 120 ثانية
       config.timeout = Math.max(config.timeout || 0, LONG_TIMEOUT);
     }
   } catch {
@@ -134,11 +142,11 @@ instance.interceptors.response.use(
 export const toAbsolute = (url) =>
   url ? (url.startsWith('http') ? url : `${API_ORIGIN}${url}`) : '';
 
-// نقاط نهاية إصدار/تحديث التوكن (توافق)
+// نقاط نهاية إصدار/تحديث التوكن (توافق مع مساراتنا في backend/urls.py)
 export const TOKEN_ENDPOINTS = {
+  // نجرب أولاً المسار المخصص لو موجود، ثم المسار الرسمي لـ SimpleJWT
   obtain: [`${API_BASE}/auth/token/`, `${API_ORIGIN}/api/token/`],
   refresh: [`${API_BASE}/auth/token/refresh/`, `${API_ORIGIN}/api/token/refresh/`],
 };
 
-// التصدير الافتراضي
 export default instance;

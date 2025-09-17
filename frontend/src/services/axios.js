@@ -144,9 +144,9 @@ export const toAbsolute = (url) =>
 
 // نقاط نهاية إصدار/تحديث التوكن (توافق مع مساراتنا في backend/urls.py)
 export const TOKEN_ENDPOINTS = {
-  // نجرب أولاً المسار المخصص لو موجود، ثم المسار الرسمي لـ SimpleJWT
-  obtain: [`${API_BASE}/auth/token/`, `${API_ORIGIN}/api/token/`],
-  refresh: [`${API_BASE}/auth/token/refresh/`, `${API_ORIGIN}/api/token/refresh/`],
+  obtain: [`${API_ORIGIN}/api/token/`],         // <-- الصح
+  refresh: [`${API_ORIGIN}/api/token/refresh/`] // <-- الصح
 };
+
 
 export default instance;

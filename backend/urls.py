@@ -27,8 +27,8 @@ urlpatterns = [
     path("api/", include("core.urls")),
 
     # JWT الرسمية (احتفظنا بها للشفافية/الاختبار)
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
     # مسار تسجيل الدخول المعتمد من الواجهة الأمامية
     path("api/auth/login/", LoginView.as_view(), name="custom_login"),

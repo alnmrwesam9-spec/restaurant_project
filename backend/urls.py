@@ -1,34 +1,41 @@
+# backend/urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
+
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView  # للمرجع/الاختبار
 from django.conf import settings
 from django.conf.urls.static import static
 
-from rest_framework_simplejwt.views import TokenRefreshView
-from core.auth_views import LoginView  # ← يستخدم Serializer يدعم email أو username
+# الـ Login المخصص (username أو email)
+from core.auth_views import LoginView
+
 
 def health(_request):
-    # نقطة بسيطة ترجع 200 لتأكيد عمل السيرفر
+    """نقطة فحص بسيطة على الروت."""
     return JsonResponse({"status": "ok", "app": "backend"})
 
+
 urlpatterns = [
-    # صحّة على الروت
+    # Health
     path("", health),
 
-    # لوحة الإدارة
+    # Django admin
     path("admin/", admin.site.urls),
 
-    # روابط التطبيق الأساسي
+    # روابط التطبيق الأساسية
     path("api/", include("core.urls")),
 
-    # مسارات المصادقة (توليد وتحديث التوكِن)
-    path("api/auth/token/", LoginView.as_view(), name="token_obtain_pair"),
+    # JWT الرسمية (احتفظنا بها للشفافية/الاختبار)
+    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
-    # ألياسات شائعة (كلها تشير لنفس LoginView)
-    path("api/login/", LoginView.as_view()),
-    path("api/auth/login/", LoginView.as_view()),
-    path("api/auth/jwt/create/", LoginView.as_view()),
+    # مسار تسجيل الدخول المعتمد من الواجهة الأمامية
+    path("api/auth/login/", LoginView.as_view(), name="custom_login"),
+
+    # (اختياري) aliases شائعة إن احتجتها لاحقًا
+    # path("api/login/", LoginView.as_view()),
+    # path("api/auth/jwt/create/", LoginView.as_view()),
 ]
 
 if settings.DEBUG:

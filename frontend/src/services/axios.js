@@ -143,9 +143,11 @@ export const toAbsolute = (url) =>
   url ? (url.startsWith('http') ? url : `${API_ORIGIN}${url}`) : '';
 
 // نقاط نهاية إصدار/تحديث التوكن (توافق مع مساراتنا في backend/urls.py)
+// src/services/axios.js
+
 export const TOKEN_ENDPOINTS = {
-  obtain: [`${API_ORIGIN}/api/token/`],         // <-- الصح
-  refresh: [`${API_ORIGIN}/api/token/refresh/`] // <-- الصح
+  obtain: [`${API_BASE}/token/`],          // ← بدّلها هكذا
+  refresh: [`${API_BASE}/token/refresh/`], // ← و هكذا
 };
 
 

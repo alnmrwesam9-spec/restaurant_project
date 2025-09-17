@@ -1,35 +1,33 @@
-"""
-URL configuration for backend project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView  # ← استيراد مهم
+from django.http import JsonResponse
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
 from django.conf.urls.static import static
 
-
+def health(_request):
+    # نقطة بسيطة ترجع 200 لتأكيد عمل السيرفر
+    return JsonResponse({"status": "ok", "app": "backend"})
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('core.urls')),  # ← روابط التطبيق الأساسي
-    
-    # روابط JWT:
-    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # صحّة على الروت
+    path("", health),
+
+    # لوحة الإدارة
+    path("admin/", admin.site.urls),
+
+    # روابط التطبيق الأساسي
+    path("api/", include("core.urls")),
+
+    # روابط JWT الرسمية
+    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # ألياسات شائعة (لو واجهتك تتوقع أسماء أخرى)
+    path("api/login/", TokenObtainPairView.as_view()),               # /api/login/
+    path("api/auth/login/", TokenObtainPairView.as_view()),          # /api/auth/login/
+    path("api/auth/jwt/create/", TokenObtainPairView.as_view()),     # /api/auth/jwt/create/
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

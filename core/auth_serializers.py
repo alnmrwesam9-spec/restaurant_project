@@ -7,10 +7,11 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     يسمح بتسجيل الدخول إمّا بـ username أو email.
     إن أُرسِل email نحوله لاسم المستخدم الحقيقي ثم نكمل تدقيق JWT الطبيعي.
-    المدخل المقبول:
-      - {"username": "wesam", "password": "..."}  أو
-      - {"username": "user@example.com", "password": "..."}  أو
-      - {"email": "user@example.com", "password": "..."}  (اختياري)
+
+    ⚠️ هذا السيريلIZER أيضًا يضيف Claims داخل التوكن:
+        - role (إن وُجد بالحساب)
+        - is_staff, is_superuser
+        - username, email (للاستخدام بالواجهة)
     """
 
     def validate(self, attrs):
@@ -41,3 +42,20 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # أكمل تحقّق JWT الافتراضي (سيفشل تلقائيًا لو كانت البيانات خاطئة)
         return super().validate(attrs)
+
+    @classmethod
+    def get_token(cls, user):
+        """
+        نضيف Claims مطلوبة إلى التوكن ليستفيد منها الفرونت بالتحويل حسب الدور.
+        """
+        token = super().get_token(user)
+        # حقول عامة مفيدة للواجهة
+        token["username"] = getattr(user, "username", "") or ""
+        token["email"] = getattr(user, "email", "") or ""
+        # الدور (إن كان عندك حقل role على نموذج المستخدم)
+        role = getattr(user, "role", "") or ""
+        token["role"] = str(role).lower()
+        # صلاحيات Django القياسية
+        token["is_staff"] = bool(getattr(user, "is_staff", False))
+        token["is_superuser"] = bool(getattr(user, "is_superuser", False))
+        return token

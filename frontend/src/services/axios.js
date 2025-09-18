@@ -2,8 +2,10 @@
 // -----------------------------------------------------------------------------
 // عميل Axios موحّد للتعامل مع الـ API.
 // - يقرأ أصل الـ API من متغيّر بيئة واحد (مع بدائل متوافقة).
-// - يضمن أن الطلبات العامة (/public/* أو /api/public/*) لا تُرسل معها Authorization.
+// - يضمن أن الطلبات العامة (/public/* أو /api/public/* أو /api/register/ أو /api/token/*)
+//   لا تُرسل معها Authorization.
 // - يضيف Authorization لباقي الطلبات إن وُجد التوكن.
+// - يدعم رفع الملفات عبر FormData (لا نفرض Content-Type).
 // - مهلة أطول لاستدعاء "توليد أكواد الحساسية".
 // -----------------------------------------------------------------------------
 
@@ -26,10 +28,7 @@ export const API_BASE = `${API_ORIGIN}/api`;
 const instance = axios.create({
   baseURL: API_BASE,     // كل المسارات النسبية تُركّب على هذا الأساس
   timeout: 90_000,       // مهلة افتراضية 90 ثانية
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // لو كنت تستخدم كوكيز/جلسات عبر دومينات مختلفة:
+  // ملاحظة: لا نفرض Content-Type هنا (نضبطه لاحقًا في الإنترسبتور حسب نوع البيانات)
   // withCredentials: true,
 });
 
@@ -50,15 +49,34 @@ function isPublicRequest(config) {
     if (/^https?:\/\//i.test(raw)) {
       const u = new URL(raw);
       const p = u.pathname || '';
-      return p.startsWith('/api/public/') || p.startsWith('/public/');
+      return (
+        p.startsWith('/api/public/') ||
+        p.startsWith('/public/') ||
+        p === '/api/register/' ||
+        p === '/api/token/' ||
+        p === '/api/token/refresh/' ||
+        p === '/api/token/verify/'
+      );
     }
     const full = new URL(raw, config.baseURL || API_BASE);
     const p = full.pathname || '';
-    return p.startsWith('/api/public/') || p.startsWith('/public/');
+    return (
+      p.startsWith('/api/public/') ||
+      p.startsWith('/public/') ||
+      p === '/api/register/' ||
+      p === '/api/token/' ||
+      p === '/api/token/refresh/' ||
+      p === '/api/token/verify/'
+    );
   } catch {
     return (
       typeof raw === 'string' &&
-      (raw.startsWith('/public/') || raw.startsWith('/api/public/'))
+      (raw.startsWith('/public/') ||
+        raw.startsWith('/api/public/') ||
+        raw === '/api/register/' ||
+        raw === '/api/token/' ||
+        raw === '/api/token/refresh/' ||
+        raw === '/api/token/verify/')
     );
   }
 }
@@ -81,6 +99,19 @@ instance.interceptors.request.use((config) => {
   const token = getToken();
   const pub = isPublicRequest(config);
   config.__isPublic = pub;
+
+  // ضبط Content-Type حسب نوع البيانات:
+  // - FormData: اترك المتصفح يضيف boundary (لا تفرض Content-Type)
+  // - JSON: عيّن application/json إن لم يكن محددًا
+  if (config.data instanceof FormData) {
+    config.headers = config.headers || {};
+    delete config.headers['Content-Type'];
+  } else {
+    config.headers = config.headers || {};
+    if (!config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+  }
 
   if (pub) {
     stripAuth(config);
@@ -143,12 +174,9 @@ export const toAbsolute = (url) =>
   url ? (url.startsWith('http') ? url : `${API_ORIGIN}${url}`) : '';
 
 // نقاط نهاية إصدار/تحديث التوكن (توافق مع مساراتنا في backend/urls.py)
-// src/services/axios.js
-
 export const TOKEN_ENDPOINTS = {
-  obtain: [`${API_BASE}/token/`],          // ← بدّلها هكذا
-  refresh: [`${API_BASE}/token/refresh/`], // ← و هكذا
+  obtain: [`${API_BASE}/token/`],
+  refresh: [`${API_BASE}/token/refresh/`],
 };
-
 
 export default instance;

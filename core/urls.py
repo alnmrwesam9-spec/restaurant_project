@@ -36,7 +36,6 @@ nested_v2.register(r"allergens", views.DishAllergenViewSet, basename="v2-dish-al
 # -----------------------------------------------
 urlpatterns = [
     # ---------- Auth / JWT ----------
-    path("token/", MyTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     path("register/", views.RegisterView.as_view(), name="register"),

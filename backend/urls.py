@@ -4,7 +4,10 @@ from django.urls import path, include
 from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+
+# ✅ استخدم الـView المخصص الذي يضيف claims داخل JWT
+from core.auth_views import MyTokenObtainPairView
 
 # استيراد اختياري: لا يُسقِط السيرفر إذا لم يوجد LoginView
 try:
@@ -26,18 +29,19 @@ urlpatterns = [
     # Admin
     path("admin/", admin.site.urls),
 
-    # روابط التطبيق
+    # روابط التطبيق (باقي الـ APIs)
     path("api/", include("core.urls")),
-    #------------------
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair_alias"),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh_alias"),
 
-    # مسارات JWT القياسية (تعمل فوريًا)
-    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    # ✅ مسارات JWT (تستخدم السيريلـايزر المخصص عبر MyTokenObtainPairView)
+    path("api/token/", MyTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # (اختياري) aliases قديمة/بديلة إن احتجتها
+    path("api/auth/token/", MyTokenObtainPairView.as_view(), name="token_obtain_pair_alias"),
+    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh_alias"),
 ]
 
-# نضيف مسار تسجيل الدخول المخصص فقط إن كان موجودًا فعلًا
+# مسار تسجيل الدخول المخصص (إن وُجد)
 if HAS_CUSTOM_LOGIN:
     urlpatterns.append(
         path("api/auth/login/", CustomLoginView.as_view(), name="custom_login")

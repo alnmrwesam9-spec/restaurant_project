@@ -1,6 +1,6 @@
 // src/pages/MenusPage.container.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import api from '../services/axios';
+import api, { toAbsolute, API_ORIGIN } from '../services/axios';
 import { Link } from 'react-router-dom';
 import {
   Container, Typography, TextField, Button, Stack, Card, CardContent, Box, Alert,
@@ -40,8 +40,8 @@ import useLocalStorage from '../hooks/useLocalStorage';
 import { MenusProvider } from './MenusPage.context';
 import MenusPageView from './MenusPage.view';
 
-// صورة افتراضية من Django static
-const PLACEHOLDER = '/static/img/dish-placeholder.png';
+// صورة افتراضية من Django static (حولناها لمطلق)
+const PLACEHOLDER = `${API_ORIGIN}/static/img/dish-placeholder.png`;
 
 /** أبعاد بطاقات الأطباق */
 const CARD_W = 280;
@@ -215,10 +215,12 @@ function MenusPage({ token }) {
     }
   };
 
+  // ✅ صارت كل الصور تمر عبر toAbsolute، والبليس هولدر صار مطلق
   const dishCardImage = (dish) => {
-    if (dish?.image) return dish.image;
-    if (profile?.avatar) return profile.avatar;
-    return dish?.image_url || PLACEHOLDER;
+    const fromDish = dish?.image || dish?.image_url;
+    if (fromDish) return toAbsolute(fromDish);
+    if (profile?.avatar) return toAbsolute(profile.avatar);
+    return PLACEHOLDER;
   };
 
   const bySort = (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0) || (a?.id || 0) - (b?.id || 0);
@@ -240,15 +242,16 @@ function MenusPage({ token }) {
   const hiddenFileId = 'excel-import-input';
   const openExcelPicker = () => document.getElementById(hiddenFileId)?.click();
 
+  // ✅ أزلنا فرض Content-Type حتى يضيف المتصفح boundary تلقائيًا
   const handleUploadAvatar = async (fileOrEvent) => {
     const file = fileOrEvent?.target?.files?.[0] ?? fileOrEvent;
     if (!file) return;
     try {
       const fd = new FormData();
       fd.append('avatar', file);
-      const res = await api.patch('/me/profile/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.patch('/me/profile/', fd); // لا نمرر headers
       const avatar = res?.data?.avatar || '';
-      setProfile((p) => ({ ...p, avatar }));
+      setProfile((p) => ({ ...p, avatar: toAbsolute(avatar) }));
       setSnack({ open: true, msg: t('toast.saved') });
     } catch (err) {
       console.error(err);
@@ -308,7 +311,7 @@ function MenusPage({ token }) {
         ...p,
         display_name: display_name || username || p.display_name,
         username: username || p.username,
-        avatar: avatar || '',
+        avatar: avatar ? toAbsolute(avatar) : '',
       }));
     } catch { /* ignore */ }
   };
@@ -320,8 +323,8 @@ function MenusPage({ token }) {
     try {
       const res = await api.get(`/menus/${menuId}/display-settings/`);
       setSelectedDisplay({
-        logo: res?.data?.logo || '',
-        hero_image: res?.data?.hero_image || '',
+        logo: toAbsolute(res?.data?.logo || ''),
+        hero_image: toAbsolute(res?.data?.hero_image || ''),
       });
     } catch {
       setSelectedDisplay({ logo: '', hero_image: '' });
@@ -786,7 +789,7 @@ function MenusPage({ token }) {
     dishOpen, setDishOpen, dishSel, setDishSel, openDish,
 
     // توليد الأكواد
-    genOpen, setGenOpen, genBusy, genForce, setGenForce, genDryRun, setGenDryRun, // ✅ أضفنا setGenDryRun
+    genOpen, setGenOpen, genBusy, genForce, setGenForce, genDryRun, setGenDryRun,
     genLang, setGenLang, genUseLLM, setGenUseLLM, genLLMDryRun, setGenLLMDryRun,
     genModel, setGenModel, genMaxTerms, setGenMaxTerms, genTemperature, setGenTemperature,
     genDishIdsText, setGenDishIdsText, llmGuessCodes, setLlmGuessCodes, llmDebug, setLlmDebug,
@@ -805,7 +808,7 @@ function MenusPage({ token }) {
     // لغات
     LANGS, changeLang,
 
-    // أيقونات نحتاجها داخل الـ View (لأننا نستعملها هناك)
+    // أيقونات نحتاجها داخل الـ View
     Icons: {
       AddIcon, FolderIcon, DeleteIcon, FileDownloadIcon, LinkIcon, ContentCopyIcon, SettingsIcon,
       UploadFileIcon, CheckCircleIcon, WarningAmberIcon, ScienceIcon, RefreshIcon, MenuIcon,

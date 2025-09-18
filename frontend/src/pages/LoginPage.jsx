@@ -1,10 +1,6 @@
 // src/pages/LoginPage.jsx
 // -----------------------------------------------------------------------------
-// Arcana-style Login (UI only)
-// - Left: clean light panel with logo, "Sign in", fields, remember me, black CTA, links, social
-// - Right: large dark card with rounded corners, glossy streaks, big watermark "A", welcome copy
-// - Preserves your login logic (axios instance, JWT decode, role-based navigate, i18n)
-// - Responsive & RTL-aware
+// Arcana-style Login (UI only) - نسخة محسّنة
 // -----------------------------------------------------------------------------
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -91,7 +87,7 @@ export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(true); // مظهر فقط (نخزن دائمًا في sessionStorage)
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState(null);
@@ -110,7 +106,13 @@ export default function LoginPage({ onLogin }) {
     setSubmitting(true);
     setError('');
     try {
-      const { data } = await api.post('/auth/token/', { username, password });
+      // ✅ مهم: لا ترسل Authorization في طلب التوكن
+      const { data } = await api.post(
+        '/auth/token/', // عندك alias شغال: /api/auth/token/
+        { username, email: username, password }, // ندعم ايميل/Username
+        { headers: { Authorization: undefined } }
+      );
+
       const accessToken = data?.access;
       if (!accessToken) throw new Error('Missing access token');
 
@@ -122,14 +124,16 @@ export default function LoginPage({ onLogin }) {
         role = 'user';
       }
 
+      // نخزن في session فقط (متوافق مع App.js)
       sessionStorage.setItem('token', accessToken);
       sessionStorage.setItem('role', role);
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
+      try { localStorage.removeItem('token'); localStorage.removeItem('role'); } catch {}
 
       api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
       setToken(accessToken);
       onLogin?.(accessToken);
+
+      // تحويل حسب الدور
       navigate(role === 'admin' ? '/admin/users' : '/menus', { replace: true });
     } catch (err) {
       if (axios.isAxiosError && axios.isAxiosError(err)) {
@@ -155,6 +159,8 @@ export default function LoginPage({ onLogin }) {
     md: isRTL ? 'row-reverse' : 'row',
   };
 
+  const isDisabled = submitting || !username.trim() || !password.trim();
+
   return (
     <Box
       component="main"
@@ -162,7 +168,7 @@ export default function LoginPage({ onLogin }) {
         minHeight: '100svh',
         display: 'flex',
         flexDirection: layoutDirection,
-        bgcolor: '#f3f4f6', // light grey like the shot
+        bgcolor: '#f3f4f6',
       }}
     >
       {/* ===================== Left (Form) ===================== */}
@@ -199,17 +205,11 @@ export default function LoginPage({ onLogin }) {
             {t('sign_in') || 'Sign in'}
           </Typography>
 
-          {/* Language tiny pills (optional) */}
+          {/* Language tiny pills */}
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-            <Button size="small" variant="outlined" onClick={() => changeLang('ar')}>
-              AR
-            </Button>
-            <Button size="small" variant="outlined" onClick={() => changeLang('de')}>
-              DE
-            </Button>
-            <Button size="small" variant="outlined" onClick={() => changeLang('en')}>
-              EN
-            </Button>
+            <Button size="small" variant="outlined" onClick={() => changeLang('ar')}>AR</Button>
+            <Button size="small" variant="outlined" onClick={() => changeLang('de')}>DE</Button>
+            <Button size="small" variant="outlined" onClick={() => changeLang('en')}>EN</Button>
           </Stack>
 
           <Box component="form" onSubmit={handleLogin} noValidate>
@@ -217,7 +217,7 @@ export default function LoginPage({ onLogin }) {
               fullWidth
               required
               margin="normal"
-              label={t('email_address') || 'Email Address'}
+              label={t('email_or_username') || 'Email or Username'}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
@@ -306,7 +306,7 @@ export default function LoginPage({ onLogin }) {
               fullWidth
               type="submit"
               variant="contained"
-              disabled={submitting}
+              disabled={isDisabled}
               sx={{
                 mt: 2.5,
                 py: 1.2,
@@ -336,7 +336,7 @@ export default function LoginPage({ onLogin }) {
             <Divider sx={{ flex: 1 }} />
           </Stack>
 
-          {/* Social */}
+          {/* Social (placeholder) */}
           <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
             {[GoogleIcon, GitHubIcon, FacebookIcon].map((Icon, idx) => (
               <IconButton
@@ -380,7 +380,7 @@ export default function LoginPage({ onLogin }) {
             maxWidth: 720,
             bgcolor: '#000000ff',
             color: '#fff',
-            borderRadius: { xs: 6, md: 8 }, // big rounded like the shot
+            borderRadius: { xs: 6, md: 8 },
             p: { xs: 3, md: 6 },
             overflow: 'hidden',
           }}
@@ -415,7 +415,7 @@ export default function LoginPage({ onLogin }) {
             }}
           />
 
-          {/* Watermark "A" */}
+          {/* Watermark */}
           <Typography
             aria-hidden
             sx={{
@@ -437,17 +437,17 @@ export default function LoginPage({ onLogin }) {
           {/* Content */}
           <Stack spacing={2} sx={{ position: 'relative' }}>
             <Typography variant="overline" sx={{ opacity: 0.7 }}>
-                IBLATECH 
+              IBLATECH
             </Typography>
             <Typography variant="h4" fontWeight={800}>
-              {t('welcome_to_my web') || 'Welcome to '}
+              {t('welcome_to_my_web') || 'Welcome'}
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.85, maxWidth: 520 }}>
               {t('From a single page you control dishes, prices, languages, and allergen info. Fast and simple — without complications.') ||
                 'Every menu… always up-to-date, always in your customers’ hands'}
             </Typography>
             <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              {t('joined_1k') || ""}
+              {t('joined_1k') || ''}
             </Typography>
 
             {/* Speech-bubble CTA card */}
@@ -476,7 +476,8 @@ export default function LoginPage({ onLogin }) {
               }}
             >
               <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
-                {t('A modern platform to manage restaurant menus with ease') || 'A modern platform to manage restaurant menus with ease'}
+                {t('A modern platform to manage restaurant menus with ease') ||
+                  'A modern platform to manage restaurant menus with ease'}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.85, mb: 2 }}>
                 {t('So far: 15+ restaurants and 300+ customers are using our digital menus') ||

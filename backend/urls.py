@@ -56,6 +56,6 @@ else:
     # إنتاج: قدّم /media/ عبر Django (سهل لكنه أقل كفاءة)
     urlpatterns += [
         re_path(r'^media/(?P<path>.*)$',
-                media_serve,
+                media_serv,
                 {'document_root': settings.MEDIA_ROOT}),
     ]

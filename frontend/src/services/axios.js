@@ -15,8 +15,7 @@ import axios from 'axios';
 const RAW_ORIGIN =
   process.env.REACT_APP_API_BASE ||   // الموصى به على Vercel
   process.env.REACT_APP_API_URL ||    // بديل قديم
-  process.env.REACT_APP_API_ORIGIN || // بديل أقدم
-  'http://localhost:8000';
+  process.env.REACT_APP_API_ORIGIN 
 
 // إزالة السلاشات الزائدة
 export const API_ORIGIN = String(RAW_ORIGIN).replace(/\/+$/, '');

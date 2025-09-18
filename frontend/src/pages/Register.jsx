@@ -1,8 +1,4 @@
 // src/pages/RegisterPage.jsx
-// -----------------------------------------------------------------------------
-// Register Page (uses shared axios client + env API base)
-// -----------------------------------------------------------------------------
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -10,68 +6,66 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-
-import api, { TOKEN_ENDPOINTS } from "../services/axios";   // ⬅️ استخدم عميلنا
+import api from "../services/axios"; // ← المهم: عميلنا الموحّد
 
 export default function RegisterPage({ onLogin }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    username: "", email: "", password: "", password2: "",
-    first_name: "", last_name: "",
+    username: "", email: "", password: "", password2: "", first_name: "", last_name: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // RTL
   const isRTL = useMemo(() => i18n.language === "ar", [i18n.language]);
-  useEffect(() => { document.dir = isRTL ? "rtl" : "ltr"; document.documentElement.lang = i18n.language; }, [isRTL, i18n.language]);
+  useEffect(() => {
+    document.dir = isRTL ? "rtl" : "ltr";
+    document.documentElement.lang = i18n.language;
+  }, [isRTL, i18n.language]);
   const changeLang = (lang) => i18n.changeLanguage(lang);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  // يحاول تسجيل الدخول عبر أي مسار متاح من TOKEN_ENDPOINTS
-  const loginAfterRegister = async (username, password) => {
-    const candidates = TOKEN_ENDPOINTS.obtain; // ['/api/token/', '/api/auth/token/', '/api/auth/login/']
-    for (const url of candidates) {
-      try {
-        const { data } = await api.post(url.replace(api.defaults.baseURL, "").replace(/^https?:\/\/[^/]+/i, ""), {
-          username, password,
-        });
-        const access = data?.access;
-        if (access) return access;
-      } catch (_) { /* جرّب التالي */ }
-    }
-    throw new Error("login_failed");
-  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError("");
     try {
-      // ⬅️ لا URLs ثابتة: baseURL = {API_ORIGIN}/api
+      // إنشاء الحساب
       await api.post("/register/", {
-        ...formData,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         role: "owner",
       });
 
-      const token = await loginAfterRegister(formData.username, formData.password);
+      // تسجيل الدخول مباشرة
+      const { data } = await api.post("/auth/token/", {
+        username: formData.username,
+        password: formData.password,
+      });
+      const access = data?.access;
+      if (!access) throw new Error("No access token");
 
-      // نخزن في sessionStorage لأن التطبيق يعتمد عليها
-      sessionStorage.setItem("token", token);
+      // خزّن في sessionStorage (متوافق مع بقية التطبيق)
+      sessionStorage.setItem("token", access);
       sessionStorage.setItem("role", "user");
-      // حدّث هيدر الأوث
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+      api.defaults.headers.common.Authorization = `Bearer ${access}`;
 
-      // خلي App.js يلتقط onLogin ويعيد التوجيه حسب الدور
-      onLogin?.(token);
-      // مافيه لازم navigate يدويًا، بس لو حابب:
-      // navigate("/menus", { replace: true });
+      onLogin?.(access);
+      navigate("/menus", { replace: true });
     } catch (err) {
+      // أظهر رسائل التحقق الحقيقية إن وجدت
+      const msg = err?.response?.data
+        ? Object.entries(err.response.data)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+            .join(" | ")
+        : (t("register_error") || "Registration failed.");
+      setError(msg);
       console.error(err);
-      setError(t("register_error") || "Registration failed. Please check your data.");
     } finally {
       setSubmitting(false);
     }
@@ -89,7 +83,9 @@ export default function RegisterPage({ onLogin }) {
             <Typography fontWeight={700}>IBLA</Typography>
           </Stack>
 
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 2 }}>{t("register") || "Register"}</Typography>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 2 }}>
+            {t("register") || "Register"}
+          </Typography>
 
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
             <Button size="small" variant="outlined" onClick={() => changeLang("ar")}>AR</Button>
@@ -106,6 +102,7 @@ export default function RegisterPage({ onLogin }) {
             <TextField fullWidth margin="normal" label={t("last_name") || "Last Name"} name="last_name" value={formData.last_name} onChange={handleChange} required />
             <TextField fullWidth margin="normal" label={t("password") || "Password"} type="password" name="password" value={formData.password} onChange={handleChange} required />
             <TextField fullWidth margin="normal" label={t("confirm_password") || "Confirm Password"} type="password" name="password2" value={formData.password2} onChange={handleChange} required />
+
             <Button fullWidth type="submit" variant="contained" disabled={submitting}
               sx={{ mt: 2.5, py: 1.2, textTransform: "none", fontWeight: 800, borderRadius: 2, bgcolor: "#111", "&:hover": { bgcolor: "#000" } }}>
               {submitting ? (t("loading") || "Loading…") : (t("register") || "Register")}
@@ -119,7 +116,9 @@ export default function RegisterPage({ onLogin }) {
 
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
             <Divider sx={{ flex: 1 }} />
-            <Typography variant="caption" color="text.secondary">{t("fast_register") || "Fast register soon…"}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {t("fast_register") || "Fast register soon…"}
+            </Typography>
             <Divider sx={{ flex: 1 }} />
           </Stack>
         </Box>

@@ -11,6 +11,7 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 import { keyframes } from "@mui/system";
 import { useTranslation } from "react-i18next";
+  import { toAbsolute } from '../services/axios';
 
 export const RAIL_WIDTH = 72;
 export const SIDEBAR_WIDTH = 280;
@@ -31,7 +32,7 @@ export default function AppSidebar({
   const { t } = useTranslation();
   const side = isRTL ? "right" : "left";
   const displayName = profile?.display_name || "User";
-  const avatarSrc = profile?.avatar || undefined;
+  const avatarSrc = toAbsolute(profile?.avatar || '');
   const initial = (displayName || "U").trim()[0]?.toUpperCase() || "U";
   const accent = (theme) => theme.palette.primary.main;
 

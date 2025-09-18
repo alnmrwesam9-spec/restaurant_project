@@ -41,7 +41,7 @@ import { MenusProvider } from './MenusPage.context';
 import MenusPageView from './MenusPage.view';
 
 // صورة افتراضية من Django static (حولناها لمطلق)
-const PLACEHOLDER = `${API_ORIGIN}/static/img/dish-placeholder.png`;
+const PLACEHOLDER = toAbsolute('/static/img/dish-placeholder.png');
 
 /** أبعاد بطاقات الأطباق */
 const CARD_W = 280;
@@ -226,7 +226,7 @@ function MenusPage({ token }) {
   const bySort = (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0) || (a?.id || 0) - (b?.id || 0);
 
   const pickPrimarySecondary = (dish) => {
-    const prices = (dish?.prices || []).slice().sort(bySort);
+    const prices = (d?.prices || []).slice().sort(bySort);
     if (prices.length) {
       const primary = prices.find((p) => p.is_default) || prices[0];
       const rest = prices.filter((p) => p !== primary);
@@ -384,7 +384,8 @@ function MenusPage({ token }) {
     }
   };
 
-  const publicUrl = (menu) => menu?.public_slug ? `${window.location.origin}/show/menu/${menu.public_slug}` : '';
+  const publicUrl = (menu) =>
+    menu?.public_slug ? `${window.location.origin}/show/menu/${menu.public_slug}` : '';
 
   const copyPublicLink = async (menu) => {
     const url = publicUrl(menu);

@@ -2,8 +2,8 @@
 // -----------------------------------------------------------------------------
 // عميل Axios موحّد للتعامل مع الـ API.
 // - يقرأ أصل الـ API من متغيّر بيئة واحد (مع بدائل متوافقة).
-// - يضمن أن الطلبات العامة (/public/* أو /api/public/* أو /api/register/ أو /api/token/*)
-//   لا تُرسل معها Authorization.
+// - يضمن أن الطلبات العامة (/public/* أو /api/public/* أو /api/register/ أو
+//   /api/token/* أو /api/auth/token/* أو /api/auth/login/) لا تُرسل معها Authorization.
 // - يضيف Authorization لباقي الطلبات إن وُجد التوكن.
 // - يدعم رفع الملفات عبر FormData (لا نفرض Content-Type).
 // - مهلة أطول لاستدعاء "توليد أكواد الحساسية".
@@ -42,41 +42,41 @@ function getToken() {
   );
 }
 
+// دالة صغيرة للتعرّف على مسارات التوكن/اللوجين (سواء تحت /api/token أو /api/auth/token)
+function isAuthEndpoint(pathname = '') {
+  // أمثلة مطابقة:
+  // /api/token/  | /api/token/refresh/  | /api/token/verify/
+  // /api/auth/token/  | /api/auth/token/refresh/  | /api/auth/login/
+  return /^\/api\/(?:(?:auth\/)?token(?:\/(?:refresh|verify))?|auth\/login)\/?$/i.test(pathname);
+}
+
 // تحديد إن كان الطلب عامًا (لا يحتاج توكن)
 function isPublicRequest(config) {
   const raw = config?.url || '';
   try {
-    if (/^https?:\/\//i.test(raw)) {
-      const u = new URL(raw);
-      const p = u.pathname || '';
-      return (
-        p.startsWith('/api/public/') ||
-        p.startsWith('/public/') ||
-        p === '/api/register/' ||
-        p === '/api/token/' ||
-        p === '/api/token/refresh/' ||
-        p === '/api/token/verify/'
-      );
-    }
-    const full = new URL(raw, config.baseURL || API_BASE);
+    // كوّن عنوانًا مطلقًا ثم افحص الـ pathname
+    const full = /^https?:\/\//i.test(raw)
+      ? new URL(raw)
+      : new URL(raw, config.baseURL || API_BASE);
+
     const p = full.pathname || '';
+
     return (
       p.startsWith('/api/public/') ||
       p.startsWith('/public/') ||
       p === '/api/register/' ||
-      p === '/api/token/' ||
-      p === '/api/token/refresh/' ||
-      p === '/api/token/verify/'
+      isAuthEndpoint(p)
     );
   } catch {
+    // fallback بسيط عند فشل URL()
     return (
       typeof raw === 'string' &&
-      (raw.startsWith('/public/') ||
+      (
+        raw.startsWith('/public/') ||
         raw.startsWith('/api/public/') ||
         raw === '/api/register/' ||
-        raw === '/api/token/' ||
-        raw === '/api/token/refresh/' ||
-        raw === '/api/token/verify/')
+        isAuthEndpoint(raw)
+      )
     );
   }
 }
@@ -171,12 +171,19 @@ instance.interceptors.response.use(
 
 // تحويل أي مسار نسبي إلى رابط مطلق على أصل الـAPI (لصور مثلاً)
 export const toAbsolute = (url) =>
-  url ? (url.startsWith('http') ? url : `${API_ORIGIN}${url}`) : '';
+  url ? ((/^https?:\/\//i.test(url) || url.startsWith('//')) ? url : `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`) : '';
 
 // نقاط نهاية إصدار/تحديث التوكن (توافق مع مساراتنا في backend/urls.py)
 export const TOKEN_ENDPOINTS = {
-  obtain: [`${API_BASE}/token/`],
-  refresh: [`${API_BASE}/token/refresh/`],
+  obtain: [
+    `${API_BASE}/token/`,          // المسار القياسي
+    `${API_BASE}/auth/token/`,     // ALIAS
+    `${API_BASE}/auth/login/`,     // لو فُعِّل الـ CustomLoginView
+  ],
+  refresh: [
+    `${API_BASE}/token/refresh/`,      // القياسي
+    `${API_BASE}/auth/token/refresh/`, // ALIAS
+  ],
 };
 
 export default instance;

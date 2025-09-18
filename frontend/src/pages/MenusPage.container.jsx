@@ -226,7 +226,7 @@ function MenusPage({ token }) {
   const bySort = (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0) || (a?.id || 0) - (b?.id || 0);
 
   const pickPrimarySecondary = (dish) => {
-    const prices = (d?.prices || []).slice().sort(bySort);
+    const prices = (dish?.prices || []).slice().sort(bySort);
     if (prices.length) {
       const primary = prices.find((p) => p.is_default) || prices[0];
       const rest = prices.filter((p) => p !== primary);

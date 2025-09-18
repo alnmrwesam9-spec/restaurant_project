@@ -109,6 +109,12 @@ export default function MenusPageView() {
 
   const pillSx = { borderRadius: 999, whiteSpace: 'nowrap' };
 
+  // ✅ onError موحّد يمنع حلقة لا نهائية
+  const onImgError = (e) => {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = PLACEHOLDER;
+  };
+
   return (
     <Box
       sx={{
@@ -117,8 +123,7 @@ export default function MenusPageView() {
         bgcolor: '#f7f8fb',
         width: '100%',
         minWidth: 0,
-        overflowX: 'clip', // منع السّكرول الأفقي للصفحة
-        
+        overflowX: 'clip',
       }}
     >
       <AppSidebar
@@ -498,10 +503,11 @@ export default function MenusPageView() {
                         ) : (
                           <Box
                             component="img"
-                            src={heroSrc}
+                            key={heroSrc || PLACEHOLDER}
+                            src={heroSrc || PLACEHOLDER}
                             alt={t('aria.menu_preview')}
-                            loading="lazy"
-                            onError={(e) => { e.currentTarget.src = PLACEHOLDER; }}
+                            loading="eager"
+                            onError={onImgError}
                             sx={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
                           />
                         )}
@@ -516,10 +522,11 @@ export default function MenusPageView() {
                         <Grow in timeout={800}>
                           <Box
                             component="img"
-                            src={heroSrc}
+                            key={`big-${heroSrc || PLACEHOLDER}`}
+                            src={heroSrc || PLACEHOLDER}
                             alt={t('aria.menu_preview')}
-                            loading="lazy"
-                            onError={(e) => { e.currentTarget.src = PLACEHOLDER; }}
+                            loading="eager"
+                            onError={onImgError}
                             sx={{
                               width: '100%',
                               height: 170,
@@ -585,10 +592,11 @@ export default function MenusPageView() {
                                     <CardActionArea sx={{ height: '100%' }} onClick={() => openDish(dish)}>
                                       <Box
                                         component="img"
-                                        src={dishCardImage(dish)}
+                                        key={`${dish.id}-${dishCardImage(dish)}`}
+                                        src={dishCardImage(dish) || PLACEHOLDER}
                                         alt={dish.name || t('labels.dish')}
                                         loading="lazy"
-                                        onError={(e) => { e.currentTarget.src = profile.avatar || PLACEHOLDER; }}
+                                        onError={onImgError}
                                         sx={{ width: '100%', height: IMG_H, objectFit: 'cover', display: 'block' }}
                                       />
                                       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -675,10 +683,11 @@ export default function MenusPageView() {
                                     <CardActionArea sx={{ height: '100%' }} onClick={() => openDish(dish)}>
                                       <Box
                                         component="img"
-                                        src={dishCardImage(dish)}
+                                        key={`${dish.id}-lg-${dishCardImage(dish)}`}
+                                        src={dishCardImage(dish) || PLACEHOLDER}
                                         alt={dish.name || t('labels.dish')}
                                         loading="lazy"
-                                        onError={(e) => { e.currentTarget.src = profile.avatar || PLACEHOLDER; }}
+                                        onError={onImgError}
                                         sx={{ width: '100%', height: IMG_H, objectFit: 'cover', display: 'block' }}
                                       />
                                       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -820,9 +829,10 @@ export default function MenusPageView() {
                 <Stack spacing={2}>
                   <Box
                     component="img"
-                    src={dishCardImage(dishSel)}
+                    key={`dlg-${dishSel.id}-${dishCardImage(dishSel)}`}
+                    src={dishCardImage(dishSel) || PLACEHOLDER}
                     alt={dishSel.name || t('labels.dish')}
-                    onError={(e) => { e.currentTarget.src = PLACEHOLDER; }}
+                    onError={onImgError}
                     loading="lazy"
                     style={{ width: '100%', height: 260, objectFit: 'cover', borderRadius: 8, display: 'block' }}
                   />

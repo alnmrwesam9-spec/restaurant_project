@@ -1,11 +1,12 @@
 // src/App.js
 // -----------------------------------------------
-// ملف الراوتر الرئيسي لتطبيق React (نسخة مُحسَّنة بدون تغيير البنية):
-// - قراءة التوكن من localStorage أو sessionStorage (توافق مع "تذكّرني").
-// - ضبط Authorization في api عند الإقلاع وبعد تسجيل الدخول.
-// - ربط onUnauthorized عالميًا (401) ⇒ تنظيف شامل + رجوع للدخول.
-// - إعادة توجيه المستخدِم الموثَّق بعيدًا عن "/" و"/register".
-// - الإبقاء على نفس المسارات والـ JSX كما في نسختك (بدون Outlet/Layout).
+// راوتر رئيسي بنسخة مُحسّنة:
+// - قراءة التوكن من sessionStorage فقط (تماشيًا مع axios.js).
+// - ضبط Authorization عند الإقلاع.
+// - onUnauthorized عالمي: تنظيف + رجوع للدخول.
+// - تحويل تلقائي بعد التوثيق: أدمن → /admin/users ، غير ذلك → /menus.
+// - إزالة تكرار /register وإضافة Redirect لـ /admin.
+// - جعل /reports خلف PrivateRoute.
 // -----------------------------------------------
 
 import React, { useState, useEffect } from 'react';
@@ -13,8 +14,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import api, { setOnUnauthorized } from './services/axios';
 import { jwtDecode } from 'jwt-decode';
 
-
-// 📄 صفحات المستخدم (لوحة العميل)
+// صفحات المستخدم
 import LoginPage from './pages/LoginPage';
 import Register from './pages/Register';
 import MenusPage from './pages/MenusPage';
@@ -22,82 +22,97 @@ import SectionPage from './pages/SectionPage';
 import DishPage from './pages/DishPage';
 import ReportsDashboard from './pages/ReportsDashboard';
 
-// 📄 صفحات الأدمن (لوحة الإدارة)
+// صفحات الأدمن
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminUserMenusPage from './pages/AdminUserMenusPage';
 import AdminUserDetailsPage from './pages/AdminUserDetailsPage';
 import AdminEditUserPage from './pages/AdminEditUserPage';
 import AdminMenuEditorPage from './pages/AdminMenuEditorPage';
 
-// 🛡️ الحماية والملاحة المشتركة
+// الحماية والملاحة المشتركة
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import UserNavbar from './components/UserNavbar';
 import AdminNavbar from './components/AdminNavbar';
 
-// ⚙️ الإعدادات الخاصة بالقوائم
+// إعدادات القوائم
 import MenuPublicSettings from './pages/MenuPublicSettings';
 
-// 🌐 الصفحات العامة (يراها الزوار بدون تسجيل دخول)
+// الصفحات العامة
 import PublicMenuPage from './pages/PublicMenuPage';
 
-function App() {
+// ========= Helpers
+function parseClaims(token) {
+  try {
+    const d = jwtDecode(token);
+    const role = String(d?.role || d?.user?.role || '').toLowerCase();
+    const isStaff = !!(d?.is_staff || d?.user?.is_staff);
+    const isSuper = !!(d?.is_superuser || d?.user?.is_superuser);
+    return { role, isStaff, isSuper };
+  } catch {
+    return { role: '', isStaff: false, isSuper: false };
+  }
+}
+
+function targetAfterAuthFrom(token) {
+  if (!token) return null;
+  const { role, isStaff, isSuper } = parseClaims(token);
+  const isAdmin = isSuper || isStaff || role === 'admin';
+  return isAdmin ? '/admin/users' : '/menus';
+}
+
+export default function App() {
   const [token, setToken] = useState(null);
 
-  // عند تحميل التطبيق: اقرأ التوكن من أي تخزين + اضبط Authorization
- useEffect(() => {
-  // نظّف أي بقايا قديمة في localStorage (تحويل نهائي إلى session فقط)
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
+  // عند تحميل التطبيق: اقرأ التوكن من sessionStorage فقط واضبط Authorization
+  useEffect(() => {
+    // تنظيف قديم (نترك session فقط ليتماشى مع axios.js)
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
 
-  // اقرأ من sessionStorage فقط
-  const tokenFromSession = sessionStorage.getItem('token');
+    const tokenFromSession = sessionStorage.getItem('token');
 
-  // تحقّق من صلاحية التوكن (exp) إن وُجد
-  const isValid = tokenFromSession
-    ? (() => {
-        try {
-          const { exp } = jwtDecode(tokenFromSession);
-          return !exp || exp * 1000 > Date.now();
-        } catch {
-          return false;
-        }
-      })()
-    : false;
+    const isValid = tokenFromSession
+      ? (() => {
+          try {
+            const { exp } = jwtDecode(tokenFromSession);
+            return !exp || exp * 1000 > Date.now();
+          } catch {
+            return false;
+          }
+        })()
+      : false;
 
-  if (isValid) {
-    setToken(tokenFromSession);
-    api.defaults.headers.common.Authorization = `Bearer ${tokenFromSession}`;
-  } else {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('role');
-    delete api.defaults.headers.common.Authorization;
-    setToken(null);
-  }
-
-  // 401 عالميًا → تنظيف Session والعودة للدخول
-  setOnUnauthorized(() => {
-    try {
+    if (isValid) {
+      setToken(tokenFromSession);
+      api.defaults.headers.common.Authorization = `Bearer ${tokenFromSession}`;
+    } else {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('role');
       delete api.defaults.headers.common.Authorization;
       setToken(null);
-    } finally {
-      window.location.replace('/');
     }
-  });
-}, []);
 
+    // 401 عالميًا → تنظيف Session والعودة للدخول
+    setOnUnauthorized(() => {
+      try {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('role');
+        delete api.defaults.headers.common.Authorization;
+        setToken(null);
+      } finally {
+        window.location.replace('/');
+      }
+    });
+  }, []);
 
-
-  // يُستدعى من صفحات الدخول/التسجيل بعد نجاح المصادقة
+  // يُستدعى بعد نجاح الدخول/التسجيل من صفحات Login/Register
   const handleLogin = (accessToken) => {
     setToken(accessToken);
     api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-    // ملاحظة: التخزين (local/session) يتم داخل صفحة اللوجين نفسها حسب remember
+    // ملاحظة: التخزين تتم داخل صفحة اللوجين نفسها على sessionStorage
   };
 
-  // تسجيل الخروج
   const handleLogout = () => {
     try {
       localStorage.removeItem('token');
@@ -110,52 +125,29 @@ function App() {
     }
   };
 
-
-  // الهدف بعد التوثيق: أدمن → /admin/users، غير ذلك → /menus
-const targetAfterAuth = (() => {
-  if (!token) return null;
-  try {
-    const d = jwtDecode(token);
-    const isAdmin =
-      d?.role === 'admin' || d?.is_staff === true || d?.is_superuser === true;
-    return isAdmin ? '/admin/users' : '/menus';
-  } catch {
-    return '/menus';
-  }
-})();
-
+  const targetAfterAuth = targetAfterAuthFrom(token);
 
   return (
     <Router>
       <Routes>
-        {/* 📌 صفحات عامة */}
+        {/* 📌 الصفحة الرئيسية = شاشة الدخول أو تحويل حسب الدور */}
         <Route
-  path="/"
-  element={
-    token ? (
-      <Navigate to={targetAfterAuth} replace />
-    ) : (
-      <LoginPage onLogin={handleLogin} />
-    )
-  }
-/>
+          path="/"
+          element={
+            token ? (
+              <Navigate to={targetAfterAuth} replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
 
-<Route
-  path="/register"
-  element={
-    token ? (
-      <Navigate to={targetAfterAuth} replace />
-    ) : (
-      <Register onLogin={handleLogin} />
-    )
-  }
-/>
-
+        {/* تسجيل حساب جديد */}
         <Route
           path="/register"
           element={
             token ? (
-              <Navigate to="/menus" replace />
+              <Navigate to={targetAfterAuth} replace />
             ) : (
               <Register onLogin={handleLogin} />
             )
@@ -209,10 +201,24 @@ const targetAfterAuth = (() => {
             </PrivateRoute>
           }
         />
-        <Route path="/reports" element={<ReportsDashboard />} />
-       
+
+        {/* 🔒 تقارير وراء الحماية */}
+        <Route
+          path="/reports"
+          element={
+            <PrivateRoute token={token}>
+              <>
+                <UserNavbar onLogout={handleLogout} />
+                <ReportsDashboard />
+              </>
+            </PrivateRoute>
+          }
+        />
 
         {/* 🛡️ مسارات لوحة الأدمن */}
+        {/* Redirect أساسي لأي دخول على /admin بدون تحديد */}
+        <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+
         <Route
           path="/admin/users"
           element={
@@ -272,11 +278,9 @@ const targetAfterAuth = (() => {
         {/* 🌐 صفحات العرض العامة */}
         <Route path="/show/menu/:publicSlug" element={<PublicMenuPage />} />
 
-        {/* ❓ مسارات غير معروفة */}
+        {/* ❓ أي مسار غير معروف */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
 }
-
-export default App;

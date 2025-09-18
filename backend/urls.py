@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
+from django.urls import re_path
+from django.views.static import serve as media_serv
 
 # ✅ استخدم الـView المخصص الذي يضيف claims داخل JWT
 from core.auth_views import MyTokenObtainPairView
@@ -50,3 +52,10 @@ if HAS_CUSTOM_LOGIN:
 # ميديا محليًا لو DEBUG=1
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # إنتاج: قدّم /media/ عبر Django (سهل لكنه أقل كفاءة)
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$',
+                media_serve,
+                {'document_root': settings.MEDIA_ROOT}),
+    ]
